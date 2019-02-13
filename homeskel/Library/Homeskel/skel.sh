@@ -26,6 +26,21 @@ esac
 # Higher depths mean this command was invoked by another Homeskel command.
 export HOMESKEL_COMMAND_DEPTH=$((HOMESKEL_COMMAND_DEPTH + 1))
 
+onwarn() {
+  if [[ -t 2 ]] # check whether stderr is a tty.
+  then
+    echo -ne "\\033[4;31mWarn\\033[0m: " >&2 # highlight Warb with underline and red color
+  else
+    echo -n "Warn: " >&2
+  fi
+  if [[ $# -eq 0 ]]
+  then
+    cat >&2
+  else
+    echo "$*" >&2
+  fi
+}
+
 onoe() {
   if [[ -t 2 ]] # check whether stderr is a tty.
   then
@@ -426,5 +441,5 @@ then
   [[ "$HOMESKEL_ARG_COUNT" -gt 0 ]] && set -- "$HOMESKEL_COMMAND" "$@"
   { "homeskel-$HOMESKEL_COMMAND" "$@"; exit $?; }
 else
-  odie "Missing HOMESKEL_BASH_COMMAND $HOMESKEL_BASH_COMMAND  $@"
+  odie "Missing HOMESKEL_BASH_COMMAND $HOMESKEL_BASH_COMMAND $HOMESKEL_COMMAND $@"
 fi
