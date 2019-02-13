@@ -11,4 +11,6 @@ homeskel-install-client() {
   fi
 
   unzip ${PROJ_PREFIX}/tar/${TAR_NAME} -d "${PROJ_PREFIX}/bin"
+
+  mkdir -p ${PROJ_PREFIX}/data
 }

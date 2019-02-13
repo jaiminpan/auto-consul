@@ -5,7 +5,7 @@ homeskel-start-client() {
   then
     CMD_FULL_PATH="${PROJ_CMD_PATH}"
   else
-    CMD_FULL_PATH="$PROJ_PREFIX/${PROJ_CMD_PATH}"
+    CMD_FULL_PATH="$PROJ_PREFIX/bin/${PROJ_CMD_PATH}"
   fi
 
   if [[ -d "${PROJ_CONFIG_DIRECTORY}" ]]
@@ -37,7 +37,6 @@ homeskel-start-client() {
     onwarn "Log file $LOG_FILE_FULL_PATH exists"
   fi
 
-  exit
   if [[ -n "$PROJ_DAEMON_RUNNABLE" ]]
   then
     echo "Daemon run"
