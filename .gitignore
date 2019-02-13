@@ -1,0 +1,17 @@
+# Common
+log/
+logs/
+target/
+
+# ECLIPSE
+.classpath
+.project
+.settings
+
+# IDEA
+*.iml
+.idea/
+
+# MAC
+.DS_Store
+.ds_store
