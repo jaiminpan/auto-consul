@@ -1,0 +1,98 @@
+#!/bin/bash
+set +o posix
+
+SKELNAME="skel"
+
+# Fail fast with concise message when cwd does not exist
+if ! [[ -d "$PWD" ]]; then
+  echo "Error: The current working directory doesn't exist, cannot proceed." >&2
+  exit 1
+fi
+
+quiet_cd() {
+  cd "$@" >/dev/null || return
+}
+
+symlink_target_directory() {
+  local target target_dirname
+  target="$(readlink "$1")"
+  target_dirname="$(dirname "$target")"
+  local directory="$2"
+  quiet_cd "$directory" && quiet_cd "$target_dirname" && pwd -P
+}
+
+SKEL_FILE_DIRECTORY="$(quiet_cd "${0%/*}/" && pwd -P)"
+HOMESKEL_SKEL_FILE="${SKEL_FILE_DIRECTORY%/}/${0##*/}"
+HOMESKEL_PREFIX="${HOMESKEL_SKEL_FILE%/*/*}"
+
+# Default to / prefix if unset or the bin/SKEL file.
+if [[ -z "$HOMESKEL_PREFIX" || "$HOMESKEL_PREFIX" = "$HOMESKEL_SKEL_FILE" ]]
+then
+  HOMESKEL_PREFIX="/"
+fi
+
+HOMESKEL_REPOSITORY="$HOMESKEL_PREFIX"
+
+# Resolve the bin/SKEL symlink to find Homeskel's repository
+if [[ -L "$HOMESKEL_SKEL_FILE" ]]
+then
+  SKEL_FILE_DIRECTORY="$(symlink_target_directory "$HOMESKEL_SKEL_FILE" "$SKEL_FILE_DIRECTORY")"
+  HOMESKEL_REPOSITORY="${SKEL_FILE_DIRECTORY%/*}"
+fi
+
+# Try to find a /usr/local HOMESKEL_PREFIX where possible (for bottles)
+if [[ -L "/usr/local/bin/${SKELNAME}" ]]
+then
+  USR_LOCAL_SKEL_FILE_DIRECTORY="$(symlink_target_directory "/usr/local/bin/${SKELNAME}" "/usr/local/bin")"
+  USR_LOCAL_HOMESKEL_REPOSITORY="${USR_LOCAL_SKEL_FILE_DIRECTORY%/*}"
+  if [[ "$HOMESKEL_REPOSITORY" = "$USR_LOCAL_HOMESKEL_REPOSITORY" ]]
+  then
+    HOMESKEL_PREFIX="/usr/local"
+  fi
+fi
+
+HOMESKEL_LIBRARY="$HOMESKEL_REPOSITORY/Library"
+
+# Whitelist and copy to HOMESKEL_* all variables previously mentioned in
+# manpage or used elsewhere by Homeskel.
+for VAR in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY BINTRAY_USER BINTRAY_KEY \
+           BROWSER EDITOR GIT NO_COLOR PATH VISUAL
+do
+  # Skip if variable value is empty.
+  [[ -z "${!VAR}" ]] && continue
+
+  VAR_NEW="HOMESKEL_${VAR}"
+  # Skip if existing HOMESKEL_* variable is set.
+  [[ -n "${!VAR_NEW}" ]] && continue
+  export "$VAR_NEW"="${!VAR}"
+done
+
+# Set CI variable for Azure Pipelines, Jenkins.
+if [[ -n "$TF_BUILD" || -n "$JENKINS_HOME" ]]
+then
+  export CI="1"
+fi
+
+# test-bot does environment filtering itself
+if [[ -z "$HOMESKEL_NO_ENV_FILTERING" && "$1" != "test-bot" ]]
+then
+  PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+
+  FILTERED_ENV=()
+  # Filter all but the specific variables.
+  for VAR in HOME SHELL PATH TERM TERMINFO COLUMNS LOGNAME USER CI SSH_AUTH_SOCK SUDO_ASKPASS \
+             http_proxy https_proxy ftp_proxy no_proxy all_proxy HTTPS_PROXY FTP_PROXY ALL_PROXY \
+             "${!HOMESKEL_@}" "${!TRAVIS_@}" "${!PROJ_@}"
+  do
+    # Skip if variable value is empty.
+    [[ -z "${!VAR}" ]] && continue
+
+    FILTERED_ENV+=( "${VAR}=${!VAR}" )
+  done
+
+  exec /usr/bin/env -i "${FILTERED_ENV[@]}" /bin/bash "$HOMESKEL_LIBRARY/Homeskel/skel.sh" "$@"
+else
+  # Don't need shellcheck to follow this `source`.
+  # shellcheck disable=SC1090
+  source "$HOMESKEL_LIBRARY/Homeskel/skel.sh"
+fi
