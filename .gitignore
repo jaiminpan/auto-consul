@@ -15,3 +15,5 @@ target/
 # MAC
 .DS_Store
 .ds_store
+
+bin/
